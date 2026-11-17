@@ -1,0 +1,32 @@
+# Greenhouse Temp & Humidity Logger
+
+Simple project to track the temperature and humidity inside a greenhouse as well as the outdoor temperature.
+
+## Hardware
+Arduino Pro Micro
+LCD Display (4x20, I2C)
+RTC Module (DS3231, I2C)
+SD Card Module (SPI)
+Temp sensor (DS18B20, 1-wire)
+Temp / Humidity Sensor (DHT22, single-wire)
+
+The RTC module also includes a 4k x 8bit EEPROM that this project doesn't use.  
+The DHT22 sensor isn't appropriate for this application as very high humidity can damage it. A better choice would be the DHT20 or SHT30.
+
+### Wiring
+
+| Function | Pro Micro | LCD | RTC | SD | DS18B20 | DHT22 |
+|---|---|---|---|---|---|---|
+| SDA | 2 | J1 SDA | SDA ||||
+| SCL | 3 | J1 SCL | SCL ||||
+| CS | 10 |||CS|||
+| MISO | 14 ||| MISO |||
+| SCLK | 15 ||| SCK |||
+| MOSI | 16 ||| MOSI |||
+| 1-Wire | 9 |||| Yellow ||
+| Single Wire | 6 ||||| Out|
+| +5V | VCC | J1 VCC | VCC | VCC | Red | + |
+| GND | GND | J1 GND | GND | GND | Black | - |
+
+## Software Libraries
+
