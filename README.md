@@ -39,6 +39,16 @@ The DHT22 sensor isn't appropriate for this application as very high humidity ca
 | Temp / Humidity (DHT22) | DHT | Custom single wire protocol |
 
 # Operation
-Temperature and humidity readings are taken every DATA_SAMPLE_SECONDS and stored locally. Every DATA_LOG_MINUTES, the current readings are stored in a local buffer. When the buffer is full, its contents are written to the file "TempLog.csv" on the SD card.
+On startup, the SD card is checked for a file named "YYYY-MM-DD-TempLog.csv", where YYYY-MM-DD is the current date as read from the RTC. If the file isn't found, it is created and header information written into it. This is now the LOGFILE.
 
-As internal / external temperatures aren't expected to change frequently, readings are recorded every 5 minutes, with the SD card updated every 1.8 hours. This reduces the chance of SD card corruption due to power failure or unplugging the logger while data is being written to the SD card. Additionally, a warning is displayed on the LCD screen 5 seconds before each SD card write and disappears once the data has been written.
+Temperature and humidity readings are taken every DATA_LOG_MILLIS milliseconds and stored in a local buffer. When the buffer is full, it is written to the LOGFILE. To prevent SD card corruption, a warning message appears on the display 3 seconds before the write occurs so the user can avoid unplugging the logger.
+
+By default, readings are taken every minute, with the buffer being written to the LOGFILE every 34 minutes.
+
+# Date and Time
+The date and time can be set using the Arduino's serial monitor. Communications run at 9600 baud, which is shown on the LCD during power up. 
+
+Sending "Dyy/mm/dd" will set the date to yy/mm/dd  
+Sending "Thh:mm:ss" will set the time to hh:mm:ss  
+
+The time is in 24-hour format. Due to program space limits, the day of the month allows any value from 1 to 31, so it is possible to set an impossible date such as February 30 or November 31. 
