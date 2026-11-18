@@ -46,7 +46,7 @@
 #include "SdFat.h"
 
 // Time between logged data points
-#define DATA_LOG_MILLIS ((60)*1000)
+#define DATA_LOG_MILLIS 60000
 
 // Warning time before writing to the SD card
 #define SD_WARNING_MILLIS 3000
@@ -216,13 +216,11 @@ void errorHalt(const __FlashStringHelper *message) {
   Serial.println(message);
   sd.printSdError(&Serial);
 
-  //Try to show error on LCD
-  //lcd.clear();
+  //Show error on LCD
   lcd.setCursor(0, 1);
   lcd.print(F("SD Error...Halting"));
-  //lcd.print(message);
-  //lcd.setCursor(0, 2);
-  //lcd.print(F("Halting"));
+  lcd.setCursor(0,2);
+  lcd.print(message);
 
   //Try to save any unwritten data & prevent corruption
   file.close();
@@ -312,6 +310,11 @@ void setup() {
   // Begin serial communication at a baud rate of 9600:
   lcd.setCursor(0,1);
   lcd.print(F("Serial @ 9600"));
+  lcd.setCursor(0,2);
+  lcd.print("Logging every");
+  lcd.setCursor(0,3);
+  lcd.print(DATA_LOG_MILLIS / 1000);
+  lcd.print(" s");
   Serial.begin(9600);
 
   // Wait 5 seconds for serial communiation to start
@@ -366,9 +369,9 @@ void loop() {
   
   unsigned long dataLogTime = 0;
 
-  //Get initial time and sensor values
-  //readSensors();
-  //now = RTClib::now();
+  // This is out of range for normal operation
+  // and should force a sensor read and LCD update
+  // on the first iteration of while (true) {}
   lastSecond = 60;
   
   while (true) {
