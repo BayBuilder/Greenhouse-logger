@@ -51,4 +51,4 @@ The date and time can be set using the Arduino's serial monitor. Communications 
 Sending "Dyy/mm/dd" will set the date to yy/mm/dd  
 Sending "Thh:mm:ss" will set the time to hh:mm:ss  
 
-The time is in 24-hour format. Due to program space limits, the day of the month allows any value from 1 to 31, so it is possible to set an impossible date such as February 30 or November 31. 
+The time is in 24-hour format. Due to program space limits, the day of the month allows any value from 1 to 31, so it is possible to set an impossible date such as February 30 or November 31, __which may result in undefined operation___. You have been warned.
