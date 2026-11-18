@@ -98,16 +98,14 @@ DateTime now;
 //SD Flash Card Library
 //  SD_FAT_TYPE 1 is FAT16/32 (cards up to 64GB)
 //  SPT_SPEED_SCK_MHZ can be upped to 50 when not using a breadboard
-//  LOG_FILE_NAME number will be incremented on every power cycle
 #define SD_FAT_TYPE 1
 #define SD_CHIP_SELECT 10
 #define SPI_SPEED SD_SCK_MHZ(4)
-#define LOG_FILE_NAME "TempLog.csv"
 SdFat32 sd;
 File32 file;
 
 // Enough storage for a filename of yyyy-mm-dd-TempLog.csv
-char logFileName[25] = LOG_FILE_NAME;
+char logFileName[25];
 
 void readSensors(void) {
 
@@ -219,12 +217,12 @@ void errorHalt(const __FlashStringHelper *message) {
   sd.printSdError(&Serial);
 
   //Try to show error on LCD
-  lcd.clear();
-  lcd.print("SD Error...");
+  //lcd.clear();
   lcd.setCursor(0, 1);
-  lcd.print(message);
-  lcd.setCursor(0, 2);
-  lcd.print("Halting");
+  lcd.print(F("SD Error...Halting"));
+  //lcd.print(message);
+  //lcd.setCursor(0, 2);
+  //lcd.print(F("Halting"));
 
   //Try to save any unwritten data & prevent corruption
   file.close();
@@ -253,6 +251,56 @@ void dateTime(uint16_t *date, uint16_t *time, uint8_t *ms10) {
   *ms10 = now.second() & 1 ? 100 : 0;
 }
 
+void readSerial(void) {
+
+  static char buf[15];
+  static uint8_t pos = 0;
+  uint8_t one, two, three;
+
+  // Read incoming character
+  buf[pos] = Serial.read();
+
+  // Complete line received
+  if (buf[pos] == '\n') {
+
+    // Convert non-digits to NUL
+    for (pos = 1; pos < sizeof(buf); pos++) {
+      if (!isdigit(buf[pos])) buf[pos] = '\0';
+    }
+    
+    // We're assuming a pattern of D##/##/## or T##:##:##
+    // Where # is any digit and / or : can be any non-digit
+    one = atoi(&buf[1]);
+    two = atoi(&buf[4]);
+    three = atoi(&buf[7]);
+    
+    // Set date - minimal error checking
+    if (buf[0] == 'D') {
+      one = constrain(one, 0, 99);
+      two = constrain(two, 1, 12);
+      three = constrain(three, 1, 31);
+      myRTC.setYear(one);
+      myRTC.setMonth(two);
+      myRTC.setDate(three);
+    }
+
+    // Set time
+    if (buf[0] == 'T') {
+      one = constrain(one, 0, 23);
+      two = constrain(two, 0, 59);
+      three = constrain(three, 0, 59);
+      myRTC.setHour(one);
+      myRTC.setMinute(two);
+      myRTC.setSecond(three);
+    }
+
+    pos = 0;
+
+  } else {
+    if ( pos < sizeof(buf) - 1 ) pos++;
+  }
+}
+
 void setup() {
 
   // 4x20 (also initializes I2C library)
@@ -263,31 +311,29 @@ void setup() {
   
   // Begin serial communication at a baud rate of 9600:
   lcd.setCursor(0,1);
-  lcd.print(F("Serial init"));
+  lcd.print(F("Serial @ 9600"));
   Serial.begin(9600);
 
-  // Wait a max of 5 seconds for serial communiation to start
-  unsigned long mcu_time = millis();
-  while (1) {
-    if (Serial) break;
-    if ((millis() - mcu_time) > 5000) break;
-  }
+  // Wait 5 seconds for serial communiation to start
+  delay(5000);
 
   // Welcome message to the serial port
-  Serial.println(F("Temp/Humidity Logger"));
+  Serial.println(F("Temp/Humidity Logger\n"));
+  Serial.println(F("Dyy/mm/dd to set date"));
+  Serial.println(F("Thh:mm:ss to set time"));
 
-  lcd.setCursor(0,2);
-  lcd.print(F("Sensor init"));
+  // Sensor init
   ds18.begin(); // Start up the DS18 library
   dht.begin();  // Start up the DHT library
 
-  //SD card init
-  lcd.setCursor(0,3);
-  lcd.print(F("SD init"));
+  // SD card init
   FsDateTime::setCallback(dateTime);
   if (!sd.begin(SD_CHIP_SELECT, SPI_SPEED)) {
-    errorHalt(F("No SD Library Init"));
+    errorHalt(F("No SD Init"));
   }
+
+  // Use 24-Hour time
+  myRTC.setClockMode(false);
 
   // Log filename is yyyy-mm-dd-TempLog.csv 
   now = RTClib::now();
@@ -298,46 +344,40 @@ void setup() {
   Serial.print(F("Logging to: "));
   Serial.println(logFileName);
   if (!sd.exists(logFileName)) {
-    Serial.println(F("File doesn't exist, trying to create"));
+
     if (!file.open(logFileName, O_RDWR | O_CREAT)) {
       errorHalt(F("Error Creating File"));
     }
+
     Serial.print(logFileName);
-    Serial.println(F(" created successfully."));
+    Serial.println(" created");
     file.println(F("YYYY/MM/DD HH:MM:SS,DS18F,DHT22F,DHT22H"));
     file.flush();
     file.close();
   }
 
-  lcd.print(F(" Logfile ok"));
-  delay(5000);
   lcd.clear();
 }
 
 void loop() {
 
-  bool warningCurrent = false;
   bool writeWarning = false;
-
   uint8_t lastSecond;
-  unsigned long elapsedSeconds = 0;
   
   unsigned long dataLogTime = 0;
 
   //Get initial time and sensor values
-  readSensors();
-  now = RTClib::now();
-  lastSecond = now.second();
+  //readSensors();
+  //now = RTClib::now();
+  lastSecond = 60;
   
   while (true) {
     now = RTClib::now();
 
-    // Update elapsedSeconds every second
     // Read sensor data every second
     // Update LCD every second
     if (lastSecond != now.second()) {
       lastSecond = now.second();
-      elapsedSeconds++;
       readSensors();
       updateLCD();      
     }
@@ -359,6 +399,11 @@ void loop() {
       lcd.print(F("                    "));
 
       dataLogTime = millis();
+    }
+
+    // Check for incoming serial data
+    if (Serial.available()) {
+      readSerial();
     }
   } // while (true)
 }
